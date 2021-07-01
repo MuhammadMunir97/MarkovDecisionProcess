@@ -9,17 +9,13 @@ class Action:
 
 class State:
 
-    def __init__(self, actions, reward):
+    def __init__(self, state_val, actions, reward):
+        self.state_val = state_val
         self.actions = actions
         self.reward = reward
 
-class MarkovDecisionProcess:
-
-    def __init__ (self, states, gamma):
-        self.states = states
-        self.gamma = gamma
-
 def create_state_from_line(line):
+    state_val = int (line [0].replace("s", ""))
     reward = int (line[1])
 
     raw_transitions = line [2:]
@@ -34,7 +30,7 @@ def create_state_from_line(line):
 
     actions = create_actions_from_transitions(transitions)
 
-    return State(actions, reward)
+    return State(state_val, actions, reward)
 
 def create_actions_from_transitions(transitions):
     actions = {}
@@ -54,30 +50,57 @@ def create_actions_from_transitions(transitions):
 
     return action_objects
 
+def get_optimal_action_and_j_val(state, gamma, prev_j_val):
+    actions = state.actions
+    max_j = -1000000
+    maximised_action = None
+    for action in actions:
+        temp_j = state.reward
+        for transition in action.transitions:
+            # transition 0 is the state to, and transition 1 is the probability
+            temp_j += gamma * (prev_j_val[transition[0]] * transition[1])
+        if (temp_j > max_j):
+            max_j = temp_j
+            maximised_action = action
+    return (maximised_action, max_j)
+
 def value_iteration(state_dict, gamma):
-    j_one = []
-    for state in state_dict:
-        j_one.append([state, state.reward])
+    j_one = {}
+    for key, state in state_dict.items():
+        j_one[state.state_val] = state.reward
+
+    iteration_one_string = ""
+    for key, state in state_dict.items():
+        iteration_one_string += "(s%s"%state.state_val + " a%s"%state.actions[0].action_val + " %s"%state.reward + ") "
+    print("After iteration 1 : ")
+    print(iteration_one_string)
 
     iteration = 0;
     j_value_matrix = [j_one]
     # use delta to stop iteration
-    while 1 == 1:
-        for state in state_dict:
+    while iteration < 19:
+        next_j_row = {}
+        current_iteration_as_string = ""
+        for key, state in state_dict.items():
+            (max_action, max_j) = get_optimal_action_and_j_val(state, gamma, j_value_matrix[iteration])
+            current_iteration_as_string += "(s%s"%state.state_val + " a%s"%max_action.action_val + " %s"%round (max_j, 4) + ") "
+            next_j_row[state.state_val] = max_j
 
-eg = ['s2', '1', '(a1', 's5', '0.5)', '(a1', 's4', '0.5)', '(a3', 's5', '0.3)', '(a3', 's7', '0.7)']
+        print("After iteration %s"%(iteration + 2) + " : ")
+        print(current_iteration_as_string)
+        j_value_matrix.append(next_j_row)
+        iteration += 1
+            
 
-# if len (sys.argv) != 5:
-#     raise ValueError("Please provide five arguments")
+if len (sys.argv) != 5:
+    raise ValueError("Please provide five arguments")
 
-# training_set_file_path = sys.argv[1]
-training_set_file_path = "/Users/muhammadmunir/Documents/College/CS 4375 Intro to Ml/AssignmentThree/MarkovDecisionProcess/test2.in.txt"
+training_set_file_path = sys.argv[3]
+gamma = float (sys.argv[4])
 raw_states = [i.strip().split() for i in open(training_set_file_path).readlines()]
 
 state_dict = {}
 for idx, line in enumerate (raw_states):
     state_dict [idx + 1] = create_state_from_line(line)
 
-mdp = MarkovDecisionProcess(state_dict, 0.9)
-
-print ("c")
+value_iteration(state_dict, gamma)
